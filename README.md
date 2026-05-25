@@ -35,17 +35,34 @@ entities, drill-down on Big Bird, lineage decomposition, time cursor.
 git clone <repo>
 cd kfc_ontology_method
 pip install -r requirements.txt
-python data/load.py        # pulls real POS from Railway, loads modelled
-                           # supply chain, loads recipe mapping, derives
-                           # ingredient consumption — ~30s end-to-end
 streamlit run app.py
 ```
 
-The bootstrap caches the POS payload as `data/.pos_cache.json` (gitignored,
-~275 MB) so subsequent loads skip the network round-trip. The Railway
-endpoint occasionally truncates mid-stream — the fetcher downloads to a
-`.partial` sibling, validates the JSON, and retries up to 5 times with
-exponential backoff before swapping the cache in.
+The app self-bootstraps DuckDB on first launch from
+`data/seed/pos_snapshot.json.gz` (9 MB, bundled in the repo). No network
+access is required — Streamlit Cloud-ready.
+
+To explicitly rebuild the DB outside of Streamlit:
+
+```bash
+python data/load.py            # offline: reads the bundled snapshot
+python data/load.py --live     # re-pulls POS from Railway by paginating
+                               # across store IDs and refreshes
+                               # data/seed/pos_snapshot.json.gz
+```
+
+The Railway `/transactions` single-payload endpoint truncates
+intermittently (`IncompleteRead` mid-stream), so `--live` paginates
+`/transactions?store_id=XXXX` across 4-digit store IDs and rebuilds the
+snapshot from the union.
+
+### Streamlit Cloud
+
+`app.py` is the entry point, `requirements.txt` lists all deps, and all
+paths are repo-relative. On first request the app runs `data/load.py`
+inline (shown as a "Bootstrapping…" spinner — ~30 s) and caches the
+result via `@st.cache_resource` for the rest of the deployment's
+lifetime.
 
 ### macOS PATH note
 

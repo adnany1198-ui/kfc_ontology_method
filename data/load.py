@@ -1,10 +1,13 @@
-"""Bootstrap DuckDB from the Railway POS feed and seed CSVs.
+"""Bootstrap DuckDB from the bundled POS snapshot and seed CSVs.
 
-First-time setup: `python data/load.py`.
+First-time setup: `python data/load.py`. The default path reads only from
+files inside the repo — no network access required (Streamlit Cloud-safe).
+Pass `--live` to re-pull POS from Railway and refresh the snapshot.
 See SPEC.md Section 9 (Phase 1) and CLAUDE.md Section 1.
 """
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -16,12 +19,10 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.load_real_pos import (  # noqa: E402
-    DEFAULT_CACHE,
     DEFAULT_DB,
     build_frames,
     fetch_transactions,
     load_into_duckdb,
-    status,
 )
 
 SEED_DIR = REPO_ROOT / "data" / "seed"
@@ -143,12 +144,18 @@ def load_modelled(db_path: Path) -> None:
         con.close()
 
 
-def main() -> None:
-    print("=== KFC Ontology — bootstrap load ===")
-    st = status()
-    print(f"[net] receiver status={st.get('status')} server_count={st.get('transactions'):,}")
+def main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--live", action="store_true",
+                        help="Re-pull POS from Railway (paginated) and "
+                             "refresh data/seed/pos_snapshot.json.gz before "
+                             "loading. Default reads only the bundled snapshot.")
+    args = parser.parse_args(argv)
 
-    records = fetch_transactions(DEFAULT_CACHE)
+    print("=== KFC Ontology — bootstrap load ===")
+    print(f"[src] mode: {'LIVE (Railway paginated pull)' if args.live else 'BUNDLED (offline)'}")
+
+    records = fetch_transactions(live=args.live)
     tx_df, li_df, stats = build_frames(records)
     print(f"[pos] quality filter: {stats}")
     load_into_duckdb(DEFAULT_DB, tx_df, li_df)

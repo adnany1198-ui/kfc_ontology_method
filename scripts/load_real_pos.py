@@ -1,10 +1,20 @@
-"""Pull real POS from the Railway endpoint into DuckDB.
+"""Pull real POS into DuckDB.
+
+Default source: bundled gzipped snapshot at `data/seed/pos_snapshot.json.gz`
+(checked into the repo so the app runs with no network access — needed for
+Streamlit Cloud).
+
+`--live` re-pulls from Railway by paginating `/transactions?store_id=…`
+across 4-digit store IDs (the single-payload `/transactions` endpoint
+truncates intermittently); the response is then written back to the
+snapshot path.
 
 Source contract: CLAUDE.md Section 1.
 """
 from __future__ import annotations
 
 import argparse
+import gzip
 import json
 import re
 import sys
@@ -22,21 +32,27 @@ TX_ENDPOINT = f"{RAILWAY_BASE}/transactions"
 ROOT_ENDPOINT = f"{RAILWAY_BASE}/"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CACHE = REPO_ROOT / "data" / ".pos_cache.json"
-# Older runs cached here; we still read it if present so existing dev
-# machines don't re-download.
-_LEGACY_CACHE = REPO_ROOT / "data" / "raw_pos_cache" / "pos_transactions.json"
+BUNDLED_SNAPSHOT = REPO_ROOT / "data" / "seed" / "pos_snapshot.json.gz"
 DEFAULT_DB = REPO_ROOT / "data" / "kfc.duckdb"
+
+# Legacy uncompressed caches — read transparently when present so dev
+# machines from earlier phases don't lose their cache.
+_LEGACY_CACHES = (
+    REPO_ROOT / "data" / ".pos_cache.json",
+    REPO_ROOT / "data" / "raw_pos_cache" / "pos_transactions.json",
+)
 
 BASKET_MIN = 0.0
 BASKET_MAX = 50_000.0
 QTY_MIN = 1
 QTY_MAX = 100
 
-# Streaming download tunables (CLAUDE.md §1, Railway often truncates).
+# Live-pull tunables.
 _FETCH_MAX_ATTEMPTS = 5
 _FETCH_BACKOFF_BASE = 2.0
 _FETCH_CHUNK_BYTES = 256 * 1024
+_LIVE_STORE_ID_RANGE = range(1, 501)  # 0001..0500 zero-padded
+_LIVE_PER_REQUEST_TIMEOUT = (15, 120)
 
 _CHANNEL_PATTERNS = [
     (re.compile(r"\bDRIVE[ \-]?TH(?:R|OR)O?UGH\b", re.IGNORECASE), "DRIVE_THRU"),
@@ -60,17 +76,38 @@ def extract_channel(name: str | None) -> tuple[str, str | None]:
     return name.strip(), None
 
 
-def _validate_json_file(path: Path) -> list[dict] | None:
-    """Return parsed payload if the file is a complete JSON list, else None."""
+def _load_json_any(path: Path) -> list[dict] | None:
+    """Read a JSON list from .json or .json.gz. Returns None if missing /
+    unparsable / not a list."""
     if not path.exists() or path.stat().st_size == 0:
         return None
     try:
-        with path.open() as f:
+        opener = gzip.open if path.suffix == ".gz" else open
+        with opener(path, "rt") as f:
             payload = json.load(f)
-    except (json.JSONDecodeError, OSError):
+    except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(payload, list):
-        return None
+    return payload if isinstance(payload, list) else None
+
+
+def load_bundled_snapshot() -> list[dict]:
+    """Default source: the gzipped snapshot bundled in the repo."""
+    payload = _load_json_any(BUNDLED_SNAPSHOT)
+    if payload is None:
+        # Fall back to legacy uncompressed caches if a developer still has one.
+        for candidate in _LEGACY_CACHES:
+            payload = _load_json_any(candidate)
+            if payload is not None:
+                print(f"[pos] using legacy cache {candidate} "
+                      f"({candidate.stat().st_size/1e6:.1f} MB)")
+                return payload
+        raise FileNotFoundError(
+            f"bundled snapshot missing: {BUNDLED_SNAPSHOT}. "
+            "Re-pull with `python data/load.py --live`."
+        )
+    print(f"[pos] using bundled snapshot {BUNDLED_SNAPSHOT.name} "
+          f"({BUNDLED_SNAPSHOT.stat().st_size/1e6:.1f} MB, "
+          f"{len(payload):,} records)")
     return payload
 
 
@@ -78,7 +115,7 @@ def _stream_to_partial(url: str, partial_path: Path) -> int:
     """Download URL into a `.partial` file via chunked GET. Returns bytes written."""
     partial_path.parent.mkdir(parents=True, exist_ok=True)
     written = 0
-    with requests.get(url, timeout=(30, 600), stream=True) as resp:
+    with requests.get(url, timeout=_LIVE_PER_REQUEST_TIMEOUT, stream=True) as resp:
         resp.raise_for_status()
         expected = resp.headers.get("content-length")
         with partial_path.open("wb") as f:
@@ -97,60 +134,91 @@ def _stream_to_partial(url: str, partial_path: Path) -> int:
     return written
 
 
-def fetch_transactions(cache_path: Path, force: bool = False) -> list[dict]:
-    # 1. Cache hit — trust the file if it parses as a JSON list. Also
-    #    accept the legacy path so existing dev machines don't re-download.
-    if not force:
-        for candidate in (cache_path, _LEGACY_CACHE):
-            cached = _validate_json_file(candidate)
-            if cached is not None:
-                print(f"[pos] cache hit {candidate} "
-                      f"({candidate.stat().st_size/1e6:.1f} MB, "
-                      f"{len(cached):,} records)")
-                return cached
-        if cache_path.exists():
-            print(f"[pos] cache present but invalid — re-fetching")
-
-    # 2. Streaming download with retry-on-incomplete + backoff. Writes to
-    #    a `.partial` sibling and only swaps in once the file parses.
-    partial_path = cache_path.with_suffix(cache_path.suffix + ".partial")
+def _fetch_store_with_retry(store_id: str) -> list[dict]:
+    url = f"{TX_ENDPOINT}?store_id={store_id}"
     last_error: Exception | None = None
     for attempt in range(1, _FETCH_MAX_ATTEMPTS + 1):
         try:
-            if partial_path.exists():
-                partial_path.unlink()
-            print(f"[pos] fetching {TX_ENDPOINT} "
-                  f"(attempt {attempt}/{_FETCH_MAX_ATTEMPTS})")
-            written = _stream_to_partial(TX_ENDPOINT, partial_path)
-            print(f"[pos]   downloaded {written/1e6:.1f} MB → "
-                  f"{partial_path.name}; validating JSON…")
-            payload = _validate_json_file(partial_path)
-            if payload is None:
-                raise IOError("payload did not parse as a JSON list")
-            partial_path.replace(cache_path)
-            print(f"[pos] cached {len(payload):,} records → {cache_path}")
+            resp = requests.get(url, timeout=_LIVE_PER_REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            payload = resp.json()
+            if not isinstance(payload, list):
+                raise IOError(f"unexpected payload type: {type(payload).__name__}")
             return payload
         except (requests.exceptions.RequestException, IOError,
                 json.JSONDecodeError) as e:
             last_error = e
-            print(f"[pos]   attempt {attempt} failed: "
-                  f"{type(e).__name__}: {e}", file=sys.stderr)
             if attempt < _FETCH_MAX_ATTEMPTS:
                 delay = _FETCH_BACKOFF_BASE ** attempt
-                print(f"[pos]   backing off {delay:.0f}s…", file=sys.stderr)
                 time.sleep(delay)
-    raise RuntimeError(
-        f"failed to fetch {TX_ENDPOINT} after {_FETCH_MAX_ATTEMPTS} attempts; "
-        f"last error: {last_error}"
-    )
+    raise RuntimeError(f"store {store_id} failed after "
+                       f"{_FETCH_MAX_ATTEMPTS} attempts: {last_error}")
 
 
-def adopt_cache(cache_path: Path, source: Path) -> None:
-    """If a one-shot fetch lives elsewhere on disk, move it into the cache slot."""
-    if cache_path.exists() or not source.exists():
-        return
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    source.replace(cache_path)
+def fetch_live_paginated(snapshot_path: Path = BUNDLED_SNAPSHOT) -> list[dict]:
+    """Pull POS by iterating /transactions?store_id=XXXX across 0001..0500.
+
+    Empty store responses are skipped. The combined payload is gzipped to
+    `snapshot_path`. The single-payload `/transactions` endpoint truncates
+    intermittently, so we never call it.
+    """
+    print(f"[pos] live pull paginated across "
+          f"{_LIVE_STORE_ID_RANGE.start:04d}..{_LIVE_STORE_ID_RANGE.stop-1:04d}")
+    combined: list[dict] = []
+    seen_tx: set[str] = set()
+    hits = 0
+    for n in _LIVE_STORE_ID_RANGE:
+        store_id = f"{n:04d}"
+        try:
+            rows = _fetch_store_with_retry(store_id)
+        except RuntimeError as e:
+            print(f"[pos]   store {store_id}: {e}", file=sys.stderr)
+            continue
+        if not rows:
+            continue
+        hits += 1
+        added = 0
+        for r in rows:
+            tid = r.get("transaction_id")
+            if tid and tid not in seen_tx:
+                seen_tx.add(tid)
+                combined.append(r)
+                added += 1
+        print(f"[pos]   store {store_id}: {len(rows):>6,} rows  "
+              f"(+{added:>6,} new, total {len(combined):>7,})")
+
+    snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+    partial = snapshot_path.with_suffix(snapshot_path.suffix + ".partial")
+    slim = [_slim_record(r) for r in combined]
+    with gzip.open(partial, "wt", compresslevel=9) as f:
+        json.dump(slim, f, separators=(",", ":"))
+    partial.replace(snapshot_path)
+    print(f"[pos] live pull complete: {hits} stores hit, "
+          f"{len(combined):,} unique tx → {snapshot_path} "
+          f"({snapshot_path.stat().st_size/1e6:.1f} MB)")
+    return slim
+
+
+_SLIM_TX_KEYS = {"transaction_id", "store_id", "till_id", "operator_id",
+                 "timestamp", "basket_value", "item_count", "payment_method"}
+_SLIM_LI_KEYS = {"product_id", "product_name", "category", "quantity",
+                 "unit_price", "line_total"}
+
+
+def _slim_record(r: dict) -> dict:
+    out = {k: r.get(k) for k in _SLIM_TX_KEYS if k in r}
+    out["line_items"] = [
+        {k: li.get(k) for k in _SLIM_LI_KEYS if k in li}
+        for li in (r.get("line_items") or [])
+    ]
+    return out
+
+
+def fetch_transactions(live: bool = False) -> list[dict]:
+    """Public entry: snapshot by default, live pagination on --live."""
+    if live:
+        return fetch_live_paginated(BUNDLED_SNAPSHOT)
+    return load_bundled_snapshot()
 
 
 def build_frames(records: Iterable[dict]) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
@@ -386,19 +454,13 @@ def status() -> dict:
 
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cache", type=Path, default=DEFAULT_CACHE)
     parser.add_argument("--db", type=Path, default=DEFAULT_DB)
-    parser.add_argument("--force", action="store_true", help="Force re-fetch")
-    parser.add_argument("--adopt", type=Path, help="Move an existing JSON dump into the cache slot")
+    parser.add_argument("--live", action="store_true",
+                        help="Re-pull from Railway (paginated per store) and "
+                             "refresh the bundled snapshot")
     args = parser.parse_args(argv)
 
-    if args.adopt:
-        adopt_cache(args.cache, args.adopt)
-
-    st = status()
-    print(f"[pos] receiver status={st.get('status')} server_count={st.get('transactions'):,}")
-
-    records = fetch_transactions(args.cache, force=args.force)
+    records = fetch_transactions(live=args.live)
     tx_df, li_df, stats = build_frames(records)
     print(f"[pos] quality filter: {stats}")
     load_into_duckdb(args.db, tx_df, li_df)

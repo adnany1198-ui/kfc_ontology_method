@@ -11,14 +11,31 @@ from components import time_cursor_widget
 DB_PATH = Path(__file__).parent / "data" / "kfc.duckdb"
 
 
+@st.cache_resource(show_spinner="Bootstrapping DuckDB from the bundled "
+                                "snapshot — first launch only…")
+def _bootstrap_if_missing() -> bool:
+    if DB_PATH.exists():
+        return True
+    import subprocess, sys as _sys
+    proc = subprocess.run(
+        [_sys.executable, str(Path(__file__).parent / "data" / "load.py")],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            "data/load.py failed:\n\nSTDOUT:\n" + proc.stdout +
+            "\n\nSTDERR:\n" + proc.stderr
+        )
+    return True
+
+
 def main() -> None:
     st.set_page_config(page_title="KFC Ontology", layout="wide")
 
-    if not DB_PATH.exists():
-        st.error(
-            "Database not found. Run `python data/load.py` to bootstrap "
-            "the DuckDB before launching the app."
-        )
+    try:
+        _bootstrap_if_missing()
+    except Exception as e:
+        st.error(f"Bootstrap failed: {e}")
         st.stop()
 
     cur = time_cursor_widget.render()
