@@ -25,17 +25,24 @@ See [`METHODOLOGY.md`](METHODOLOGY.md) for the strategic frame and
 
 ## Status
 
-Pre-build scaffold. Phase 1 (Data Layer) has not started.
+v1 end-to-end build complete (Phases 1–6). Six pages, four derived
+entities (OTS, SOY, DPI, CCC), three credit products, user-constructed
+entities, drill-down on Big Bird, lineage decomposition, time cursor.
 
-## How to run (once built)
+## How to run
 
 ```bash
 git clone <repo>
 cd kfc_ontology_method
 pip install -r requirements.txt
-python data/load.py        # first-time setup: pulls real POS, builds DuckDB
+python data/load.py        # pulls real POS from Railway, loads modelled
+                           # supply chain, loads recipe mapping, derives
+                           # ingredient consumption — ~30s end-to-end
 streamlit run app.py
 ```
+
+The bootstrap caches the POS payload in `data/raw_pos_cache/` (gitignored,
+~275 MB) so subsequent loads skip the network round-trip.
 
 ## Important framing
 

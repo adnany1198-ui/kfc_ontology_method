@@ -1,4 +1,4 @@
-"""Shared types for credit products. See CLAUDE.md Section 3."""
+"""Shared types for credit products. See SPEC §5 / CLAUDE.md §3."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
