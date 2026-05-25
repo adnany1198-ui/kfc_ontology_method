@@ -70,14 +70,50 @@ Live in `data/seed/`. Twelve CSVs (see `data/seed/README.md`).
 
 ### Recipe mapping process
 
-1. You generate fuzzy name matches between 419 real SKUs and 31 templates,
-   each with a confidence score.
+1. You generate fuzzy + parser matches between the real POS menu items and
+   the 31 recipe templates, each with a confidence band.
 2. Write results to `data/sku_recipe_mapping_candidates.csv`.
 3. Adnan reviews and edits the file.
 4. You load the reviewed file into the `sku_recipe_mapping` table.
 5. **Halt Phase 1 step 4 until Adnan signs off.**
 6. **Coverage gate:** to proceed past step 4, ≥75% of POS revenue must map
    to recipes. If below, surface unmapped high-revenue SKUs for review.
+
+**Schema override (one-to-many).** SPEC.md §3.3 sketches `sku_recipe_mapping`
+as a 1:1 table (`pos_sku_id, recipe_template_id, match_quality, mapped_by,
+mapped_at`). Composite bundles like `XTREME DUO BOX (2 ZIN+2H&C+1LF+2RD)`
+contain multiple distinct recipe templates and mapping them to a single
+"dominant" template would produce systematically wrong margin and
+consumption numbers for ~75% of revenue. The table is therefore one row
+per `(real_sku_id, recipe_template_id)` pair with an explicit `quantity`
+multiplier. The candidates CSV emits the same shape so reviewers see and
+edit at the constituent level.
+
+```
+sku_recipe_mapping:
+  real_sku_id            (pos product_id from menu_items)
+  recipe_template_id     (skus.sku_id)
+  quantity               (recipe template units per real-SKU sale)
+  confidence_band        (exact | close | approximate |
+                          composite_decomposed | composite_partial |
+                          needs_manual_decomposition | unmapped |
+                          exclude_wastage)
+  component_role         (primary | constituent)
+  note                   (free-form, parser provenance)
+  approved_by_reviewer   (bool — Adnan flips this in the CSV)
+  mapped_by              (system | manual)
+  mapped_at              (timestamp)
+```
+
+Composite parsing tokens: `ZIN/ZINGER→SKU-001`, `KRUNCH→SKU-005`,
+`MIG/MIGHTY→SKU-004`, `STACKER→SKU-002`, `JUNIOR→SKU-003`, `H&C` resolved
+by piece count against the bucket grid (2/3/5/8/12/21pc), `STRIPS` by
+count (3pc/5pc), `WING` by count (6pc/12pc), `LF→SKU-051`,
+`RF/CHICKY FRIES→SKU-050`, `COB→SKU-053`, `COLESLAW/COLELAW→SKU-052`,
+`RD→SKU-060` (regular drink), `DR→SKU-061` (large drink — best guess),
+`CONE→SKU-070`, `TWISTER→SKU-030`. Tokens without a template (NUGGETS,
+HOTSHOT, DIP, SLICE, PRM) appear in the `note` as "unparsed" and route
+their row to `composite_partial`.
 
 ### Quality variance injection
 
