@@ -1,0 +1,4 @@
+node_id,node_type,city,region,function,capacity_kg_day,lat,lon
+COM-KHI-01,commissary,Karachi,Sindh,marination + sauce prep,12000,24.9056,67.0822
+WHC-KHI-01,cold_chain_warehouse,Karachi,Sindh,frozen storage + chilled distribution,20000,24.9056,67.0822
+WHD-KHI-01,dry_warehouse,Karachi,Sindh,packaging + dry goods + beverages,30000,24.9056,67.0822

@@ -1,0 +1,167 @@
+sku_id,ingredient_id,quantity_per_unit,unit,note
+SKU-001,ING-001,0.13,kg,breast filet
+SKU-001,ING-010,0.01,kg,marinade
+SKU-001,ING-011,0.04,kg,breading
+SKU-001,ING-020,0.02,litre,fry oil absorbed
+SKU-001,ING-030,1.0,piece,bun
+SKU-001,ING-040,0.02,kg,lettuce
+SKU-001,ING-080,0.015,kg,mayo
+SKU-001,ING-050,1.0,piece,cheese slice
+SKU-001,ING-201,1.0,piece,wrap
+SKU-001,ING-205,1.0,piece,tray liner — half attribution
+SKU-002,ING-001,0.22,kg,
+SKU-002,ING-010,0.018,kg,
+SKU-002,ING-011,0.07,kg,
+SKU-002,ING-020,0.035,litre,
+SKU-002,ING-031,1.0,piece,premium bun
+SKU-002,ING-040,0.025,kg,
+SKU-002,ING-080,0.02,kg,
+SKU-002,ING-050,2.0,piece,double cheese
+SKU-002,ING-201,1.0,piece,
+SKU-003,ING-001,0.08,kg,
+SKU-003,ING-010,0.006,kg,
+SKU-003,ING-011,0.025,kg,
+SKU-003,ING-020,0.012,litre,
+SKU-003,ING-030,1.0,piece,
+SKU-003,ING-040,0.012,kg,
+SKU-003,ING-080,0.01,kg,
+SKU-003,ING-201,1.0,piece,
+SKU-004,ING-001,0.18,kg,
+SKU-004,ING-010,0.015,kg,
+SKU-004,ING-011,0.055,kg,
+SKU-004,ING-020,0.028,litre,
+SKU-004,ING-031,1.0,piece,
+SKU-004,ING-040,0.022,kg,
+SKU-004,ING-041,0.02,kg,tomato slice
+SKU-004,ING-080,0.018,kg,
+SKU-004,ING-050,1.0,piece,
+SKU-004,ING-201,1.0,piece,
+SKU-005,ING-002,0.09,kg,thigh meat
+SKU-005,ING-010,0.007,kg,
+SKU-005,ING-011,0.03,kg,
+SKU-005,ING-020,0.015,litre,
+SKU-005,ING-030,1.0,piece,
+SKU-005,ING-080,0.012,kg,
+SKU-005,ING-201,1.0,piece,
+SKU-010,ING-004,0.12,kg,drumstick
+SKU-010,ING-005,0.105,kg,leg quarter
+SKU-010,ING-002,0.075,kg,thigh — bone-in proxy
+SKU-010,ING-010,0.0225,kg,marinade
+SKU-010,ING-011,0.09,kg,breading
+SKU-010,ING-020,0.045,litre,fry oil absorbed
+SKU-010,ING-202,1.0,piece,small box
+SKU-010,ING-081,0.6,piece,hot sauce sachet expected
+SKU-011,ING-004,0.18,kg,drumstick
+SKU-011,ING-005,0.15749999999999997,kg,leg quarter
+SKU-011,ING-002,0.11249999999999999,kg,thigh — bone-in proxy
+SKU-011,ING-010,0.033749999999999995,kg,marinade
+SKU-011,ING-011,0.13499999999999998,kg,breading
+SKU-011,ING-020,0.06749999999999999,litre,fry oil absorbed
+SKU-011,ING-202,1.0,piece,small box
+SKU-011,ING-081,0.8999999999999999,piece,hot sauce sachet expected
+SKU-012,ING-004,0.30000000000000004,kg,drumstick
+SKU-012,ING-005,0.26249999999999996,kg,leg quarter
+SKU-012,ING-002,0.1875,kg,thigh — bone-in proxy
+SKU-012,ING-010,0.056249999999999994,kg,marinade
+SKU-012,ING-011,0.22499999999999998,kg,breading
+SKU-012,ING-020,0.11249999999999999,litre,fry oil absorbed
+SKU-012,ING-202,1.0,piece,medium box
+SKU-012,ING-081,1.5,piece,hot sauce sachet expected
+SKU-013,ING-004,0.48,kg,drumstick
+SKU-013,ING-005,0.42,kg,leg quarter
+SKU-013,ING-002,0.3,kg,thigh — bone-in proxy
+SKU-013,ING-010,0.09,kg,marinade
+SKU-013,ING-011,0.36,kg,breading
+SKU-013,ING-020,0.18,litre,fry oil absorbed
+SKU-013,ING-200,1.0,piece,bucket
+SKU-013,ING-081,2.4,piece,hot sauce sachet expected
+SKU-014,ING-004,0.72,kg,drumstick
+SKU-014,ING-005,0.6299999999999999,kg,leg quarter
+SKU-014,ING-002,0.44999999999999996,kg,thigh — bone-in proxy
+SKU-014,ING-010,0.13499999999999998,kg,marinade
+SKU-014,ING-011,0.5399999999999999,kg,breading
+SKU-014,ING-020,0.26999999999999996,litre,fry oil absorbed
+SKU-014,ING-200,1.0,piece,bucket
+SKU-014,ING-081,3.5999999999999996,piece,hot sauce sachet expected
+SKU-015,ING-004,1.26,kg,drumstick
+SKU-015,ING-005,1.1024999999999998,kg,leg quarter
+SKU-015,ING-002,0.7875,kg,thigh — bone-in proxy
+SKU-015,ING-010,0.23625,kg,marinade
+SKU-015,ING-011,0.945,kg,breading
+SKU-015,ING-020,0.4725,litre,fry oil absorbed
+SKU-015,ING-200,1.0,piece,bucket
+SKU-015,ING-081,6.3,piece,hot sauce sachet expected
+SKU-020,ING-003,0.42,kg,6 wings
+SKU-020,ING-010,0.03,kg,
+SKU-020,ING-011,0.13,kg,
+SKU-020,ING-020,0.06,litre,
+SKU-020,ING-202,1.0,piece,
+SKU-021,ING-003,0.84,kg,
+SKU-021,ING-010,0.06,kg,
+SKU-021,ING-011,0.26,kg,
+SKU-021,ING-020,0.12,litre,
+SKU-021,ING-200,1.0,piece,small bucket
+SKU-022,ING-006,0.15,kg,3 strips
+SKU-022,ING-010,0.01,kg,
+SKU-022,ING-011,0.04,kg,
+SKU-022,ING-020,0.02,litre,
+SKU-022,ING-202,1.0,piece,
+SKU-023,ING-006,0.25,kg,5 strips
+SKU-023,ING-010,0.018,kg,
+SKU-023,ING-011,0.075,kg,
+SKU-023,ING-020,0.035,litre,
+SKU-023,ING-202,1.0,piece,
+SKU-030,ING-006,0.11,kg,
+SKU-030,ING-010,0.008,kg,
+SKU-030,ING-011,0.03,kg,
+SKU-030,ING-020,0.018,litre,
+SKU-030,ING-032,1.0,piece,tortilla
+SKU-030,ING-040,0.025,kg,
+SKU-030,ING-042,0.015,kg,onion
+SKU-030,ING-080,0.015,kg,
+SKU-031,ING-006,0.07,kg,
+SKU-031,ING-010,0.005,kg,
+SKU-031,ING-011,0.02,kg,
+SKU-031,ING-020,0.012,litre,
+SKU-031,ING-032,1.0,piece,
+SKU-031,ING-040,0.015,kg,
+SKU-031,ING-080,0.01,kg,
+SKU-040,ING-001,0.09,kg,boneless chicken
+SKU-040,ING-010,0.006,kg,
+SKU-040,ING-070,0.18,kg,rice
+SKU-040,ING-042,0.03,kg,onion
+SKU-040,ING-020,0.025,litre,
+SKU-040,ING-202,1.0,piece,
+SKU-041,ING-006,0.7,kg,
+SKU-041,ING-010,0.05,kg,
+SKU-041,ING-011,0.21,kg,
+SKU-041,ING-020,0.1,litre,
+SKU-041,ING-200,1.0,piece,bucket
+SKU-050,ING-060,0.11,kg,regular portion
+SKU-050,ING-020,0.025,litre,fry oil absorbed
+SKU-050,ING-202,1.0,piece,fry box
+SKU-051,ING-060,0.18,kg,large portion
+SKU-051,ING-020,0.04,litre,
+SKU-051,ING-202,1.0,piece,
+SKU-052,ING-043,0.09,kg,
+SKU-052,ING-080,0.025,kg,
+SKU-052,ING-202,1.0,piece,
+SKU-053,ING-061,1.0,piece,
+SKU-053,ING-205,1.0,piece,
+SKU-060,ING-100,0.08,litre,syrup
+SKU-060,ING-203,1.0,piece,cup medium
+SKU-060,ING-204,1.0,piece,lid+straw
+SKU-061,ING-100,0.11,litre,syrup large
+SKU-061,ING-203,1.0,piece,
+SKU-061,ING-204,1.0,piece,
+SKU-062,ING-101,0.08,litre,
+SKU-062,ING-203,1.0,piece,
+SKU-062,ING-204,1.0,piece,
+SKU-063,ING-102,0.08,litre,
+SKU-063,ING-203,1.0,piece,
+SKU-063,ING-204,1.0,piece,
+SKU-070,ING-203,1.0,piece,small cup proxy
+SKU-071,ING-203,1.0,piece,
+SKU-071,ING-204,1.0,piece,
+SKU-072,ING-203,1.0,piece,
+SKU-072,ING-204,1.0,piece,

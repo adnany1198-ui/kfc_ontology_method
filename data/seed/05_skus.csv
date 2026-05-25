@@ -1,0 +1,32 @@
+sku_id,name,category,price_pkr,introduced,active,daypart_skew
+SKU-001,Zinger Burger,chicken_burger,750,1998-01-01,True,all
+SKU-002,Zinger Stacker,chicken_burger,1200,2010-06-01,True,dinner
+SKU-003,Zinger Junior,chicken_burger,490,2015-03-01,True,lunch
+SKU-004,Mighty Zinger,chicken_burger,1050,2018-04-01,True,all
+SKU-005,Krunch Burger,chicken_burger,450,2008-01-01,True,all
+SKU-010,Hot & Crispy 2pc,bone_in_chicken,590,1997-06-01,True,all
+SKU-011,Hot & Crispy 3pc,bone_in_chicken,880,1997-06-01,True,all
+SKU-012,Hot & Crispy 5pc,bone_in_chicken,1395,1997-06-01,True,dinner
+SKU-013,Hot & Crispy 8pc Bucket,bone_in_chicken,2150,1997-06-01,True,dinner
+SKU-014,Hot & Crispy 12pc Bucket,bone_in_chicken,3195,1997-06-01,True,dinner
+SKU-015,Hot & Crispy 21pc Bucket,bone_in_chicken,5495,2005-01-01,True,dinner
+SKU-020,Hot Wings 6pc,wings,760,2000-01-01,True,evening
+SKU-021,Hot Wings 12pc,wings,1450,2000-01-01,True,evening
+SKU-022,Chicken Strips 3pc,strips,690,2005-01-01,True,lunch
+SKU-023,Chicken Strips 5pc,strips,1090,2005-01-01,True,all
+SKU-030,Twister Wrap,wrap,590,2003-01-01,True,lunch
+SKU-031,Chicken Snacker Twister,wrap,380,2018-01-01,True,lunch
+SKU-040,Rice n Spice,rice,590,2014-06-01,True,lunch
+SKU-041,Boneless Chicken Bucket,boneless_bucket,2895,2020-01-01,True,dinner
+SKU-050,Fries Regular,sides,280,1997-06-01,True,all
+SKU-051,Fries Large,sides,390,1997-06-01,True,all
+SKU-052,Coleslaw,sides,290,1997-06-01,True,all
+SKU-053,Corn on the Cob,sides,240,2005-01-01,True,all
+SKU-060,Pepsi Regular,beverages,290,1997-06-01,True,all
+SKU-061,Pepsi Large,beverages,370,1997-06-01,True,all
+SKU-062,7Up Regular,beverages,290,1997-06-01,True,all
+SKU-063,Mountain Dew Regular,beverages,290,2005-01-01,True,all
+SKU-064,Mineral Water,beverages,130,2010-01-01,True,all
+SKU-070,Soft Serve Cone,desserts,180,2008-01-01,True,all
+SKU-071,Krusher Chocolate,desserts,390,2012-04-01,True,summer
+SKU-072,Krusher Strawberry,desserts,390,2012-04-01,True,summer

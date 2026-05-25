@@ -1,0 +1,16 @@
+supplier_id,name,category,city,payment_terms_days,lead_time_days,delivers_to,annual_strategic_importance,moq_kg,notes
+SUP-001,Big Bird Foods,chicken_processed,Lahore,30,2,COM-KHI-01;PUNJAB_STORES,critical,500,Direct delivery from Lahore to KHI commissary 2x/week + direct to Punjab stores
+SUP-002,K&N's Foods,chicken_processed,Lahore,30,2,COM-KHI-01;PUNJAB_STORES,critical,500,Secondary chicken supplier — fills gap from Big Bird
+SUP-003,Habib Oil Mills,cooking_oil,Karachi,60,3,WHD-KHI-01,critical,1000,Frying oil — palm + canola blend
+SUP-004,Dawn Bread Industrial,bakery,Karachi,30,1,WHD-KHI-01;LAHORE_HUB,critical,200,Burger buns + tortilla wraps — daily delivery
+SUP-005,Fresh Farms Distribution,vegetables,Karachi,14,1,WHC-KHI-01;LAHORE_HUB,high,50,"Lettuce, tomato, onion — daily fresh"
+SUP-006,Dairy Crest Pakistan,dairy,Karachi,30,2,WHC-KHI-01,high,100,Processed cheese slices + mayo base
+SUP-007,National Spice Blenders,spices_marinade,Karachi,45,5,COM-KHI-01;WHD-KHI-01,critical_low_volume,50,Proprietary KFC marinade blend + breading flour — IP-sensitive
+SUP-008,Pakistan Packaging Corp,packaging,Karachi,60,7,WHD-KHI-01,medium,500,"All paper packaging — buckets, fry boxes, wraps, cups"
+SUP-009,Pepsi Cola International (PK),beverages,Lahore,30,3,WHD-KHI-01;LAHORE_HUB,strategic_partner,1000,Exclusive beverage partner — syrups + bottled
+SUP-010,Sky Foods Frozen,frozen,Karachi,45,4,WHC-KHI-01,medium,500,"Frozen fries, corn, hash browns"
+SUP-011,Matco Foods,rice_grains,Karachi,45,5,WHD-KHI-01,medium,500,Long grain rice for Rice n Spice
+SUP-012,National Foods Sauces,sauces_condiments,Karachi,45,5,WHD-KHI-01,medium,100,"Mayo, ketchup, hot sauce, BBQ sauce sachets + bulk"
+SUP-013,Mitchell's Fruit Farms,pickles_jams,Renala Khurd,60,7,WHD-KHI-01,low,50,Pickles for burgers
+SUP-014,Diversey Hygiene PK,cleaning_chemicals,Karachi,60,7,WHD-KHI-01,low,100,"Sanitization, dishwasher chems, oil filtration"
+SUP-015,Espresso Pakistan,coffee_tea,Karachi,45,5,WHD-KHI-01,low,25,Coffee beans + tea bags

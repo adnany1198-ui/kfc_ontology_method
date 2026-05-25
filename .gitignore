@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+.env
+.DS_Store
+data/kfc.duckdb
+data/kfc.duckdb.wal
+data/sku_recipe_mapping_candidates.csv
+data/raw_pos_cache/
+.streamlit/

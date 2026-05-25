@@ -1,0 +1,34 @@
+ingredient_id,name,category,unit,shelf_life_days,storage,primary_supplier,backup_supplier,current_price_pkr_unit,price_volatility
+ING-001,Chicken breast boneless,chicken,kg,3,chilled,SUP-001,SUP-002,720,high
+ING-002,Chicken thigh boneless,chicken,kg,3,chilled,SUP-001,SUP-002,580,high
+ING-003,Chicken mid-joint wing,chicken,kg,3,chilled,SUP-002,SUP-001,540,high
+ING-004,Chicken drumstick bone-in,chicken,kg,3,chilled,SUP-001,SUP-002,510,high
+ING-005,Chicken leg quarter bone-in,chicken,kg,3,chilled,SUP-001,SUP-002,495,high
+ING-006,Chicken strips boneless,chicken,kg,3,chilled,SUP-001,SUP-002,690,high
+ING-010,KFC marinade spice blend,marinade,kg,180,dry,SUP-007,,2400,low
+ING-011,Breading flour mix,dry_goods,kg,180,dry,SUP-007,,380,low
+ING-020,Frying oil palm-canola blend,oil,litre,90,dry,SUP-003,,540,medium
+ING-030,Burger bun standard,bakery,piece,5,dry,SUP-004,,38,low
+ING-031,Burger bun premium (stacker),bakery,piece,5,dry,SUP-004,,52,low
+ING-032,Tortilla wrap,bakery,piece,7,dry,SUP-004,,32,low
+ING-040,Lettuce iceberg,vegetables,kg,5,chilled,SUP-005,,180,medium
+ING-041,Tomato fresh,vegetables,kg,5,chilled,SUP-005,,220,very_high
+ING-042,Onion fresh,vegetables,kg,14,dry,SUP-005,,95,high
+ING-043,Coleslaw mix shredded,vegetables,kg,3,chilled,SUP-005,,145,medium
+ING-050,Cheese slice processed,dairy,piece,60,chilled,SUP-006,,28,low
+ING-060,Frozen fries 7mm,frozen,kg,365,frozen,SUP-010,,320,low
+ING-061,Frozen corn cobbette,frozen,piece,365,frozen,SUP-010,,45,low
+ING-070,Long grain rice,rice_grains,kg,365,dry,SUP-011,,295,medium
+ING-080,Mayonnaise bulk,sauces,kg,60,chilled,SUP-012,,420,low
+ING-081,Hot sauce sachet,sauces,piece,180,dry,SUP-012,,8,low
+ING-082,BBQ sauce sachet,sauces,piece,180,dry,SUP-012,,9,low
+ING-090,Pickle slices,pickles,kg,180,dry,SUP-013,,360,low
+ING-100,Pepsi BIB syrup,beverages,litre,180,dry,SUP-009,,280,low
+ING-101,7Up BIB syrup,beverages,litre,180,dry,SUP-009,,270,low
+ING-102,Mountain Dew BIB syrup,beverages,litre,180,dry,SUP-009,,285,low
+ING-200,Bucket large branded,packaging,piece,1825,dry,SUP-008,,42,low
+ING-201,Burger wrap paper,packaging,piece,1825,dry,SUP-008,,4,low
+ING-202,Fry box medium,packaging,piece,1825,dry,SUP-008,,7,low
+ING-203,Drink cup medium,packaging,piece,1825,dry,SUP-008,,9,low
+ING-204,Drink lid + straw,packaging,piece,1825,dry,SUP-008,,3,low
+ING-205,Tray liner sheet,packaging,piece,1825,dry,SUP-008,,2,low
