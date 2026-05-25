@@ -10,4 +10,6 @@ data/kfc.duckdb
 data/kfc.duckdb.wal
 data/sku_recipe_mapping_candidates.csv
 data/raw_pos_cache/
+data/.pos_cache.json
+data/.pos_cache.json.partial
 .streamlit/

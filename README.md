@@ -41,8 +41,29 @@ python data/load.py        # pulls real POS from Railway, loads modelled
 streamlit run app.py
 ```
 
-The bootstrap caches the POS payload in `data/raw_pos_cache/` (gitignored,
-~275 MB) so subsequent loads skip the network round-trip.
+The bootstrap caches the POS payload as `data/.pos_cache.json` (gitignored,
+~275 MB) so subsequent loads skip the network round-trip. The Railway
+endpoint occasionally truncates mid-stream — the fetcher downloads to a
+`.partial` sibling, validates the JSON, and retries up to 5 times with
+exponential backoff before swapping the cache in.
+
+### macOS PATH note
+
+If `streamlit` isn't found after `pip install`, your user-site `bin/`
+directory probably isn't on `PATH`. Either run it through Python:
+
+```bash
+python3 -m streamlit run app.py
+```
+
+…or add the user-site bin directory to your shell rc. With Homebrew Python:
+
+```bash
+echo 'export PATH="$(python3 -m site --user-base)/bin:$PATH"' >> ~/.zshrc
+exec zsh
+```
+
+Same fix applies to `pytest` after `pip install -r requirements.txt`.
 
 ## Important framing
 

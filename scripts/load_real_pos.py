@@ -8,6 +8,7 @@ import argparse
 import json
 import re
 import sys
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Iterable
@@ -21,13 +22,21 @@ TX_ENDPOINT = f"{RAILWAY_BASE}/transactions"
 ROOT_ENDPOINT = f"{RAILWAY_BASE}/"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_CACHE = REPO_ROOT / "data" / "raw_pos_cache" / "pos_transactions.json"
+DEFAULT_CACHE = REPO_ROOT / "data" / ".pos_cache.json"
+# Older runs cached here; we still read it if present so existing dev
+# machines don't re-download.
+_LEGACY_CACHE = REPO_ROOT / "data" / "raw_pos_cache" / "pos_transactions.json"
 DEFAULT_DB = REPO_ROOT / "data" / "kfc.duckdb"
 
 BASKET_MIN = 0.0
 BASKET_MAX = 50_000.0
 QTY_MIN = 1
 QTY_MAX = 100
+
+# Streaming download tunables (CLAUDE.md §1, Railway often truncates).
+_FETCH_MAX_ATTEMPTS = 5
+_FETCH_BACKOFF_BASE = 2.0
+_FETCH_CHUNK_BYTES = 256 * 1024
 
 _CHANNEL_PATTERNS = [
     (re.compile(r"\bDRIVE[ \-]?TH(?:R|OR)O?UGH\b", re.IGNORECASE), "DRIVE_THRU"),
@@ -51,21 +60,89 @@ def extract_channel(name: str | None) -> tuple[str, str | None]:
     return name.strip(), None
 
 
-def fetch_transactions(cache_path: Path, force: bool = False) -> list[dict]:
-    if cache_path.exists() and not force:
-        print(f"[pos] reading cache {cache_path} ({cache_path.stat().st_size/1e6:.1f} MB)")
-        with cache_path.open() as f:
-            return json.load(f)
-
-    print(f"[pos] fetching {TX_ENDPOINT}")
-    cache_path.parent.mkdir(parents=True, exist_ok=True)
-    resp = requests.get(TX_ENDPOINT, timeout=600)
-    resp.raise_for_status()
-    payload = resp.json()
-    with cache_path.open("w") as f:
-        json.dump(payload, f)
-    print(f"[pos] cached {len(payload):,} records → {cache_path}")
+def _validate_json_file(path: Path) -> list[dict] | None:
+    """Return parsed payload if the file is a complete JSON list, else None."""
+    if not path.exists() or path.stat().st_size == 0:
+        return None
+    try:
+        with path.open() as f:
+            payload = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+    if not isinstance(payload, list):
+        return None
     return payload
+
+
+def _stream_to_partial(url: str, partial_path: Path) -> int:
+    """Download URL into a `.partial` file via chunked GET. Returns bytes written."""
+    partial_path.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    with requests.get(url, timeout=(30, 600), stream=True) as resp:
+        resp.raise_for_status()
+        expected = resp.headers.get("content-length")
+        with partial_path.open("wb") as f:
+            for chunk in resp.iter_content(chunk_size=_FETCH_CHUNK_BYTES):
+                if not chunk:
+                    continue
+                f.write(chunk)
+                written += len(chunk)
+        if expected is not None:
+            expected_int = int(expected)
+            if written != expected_int:
+                raise IOError(
+                    f"truncated download: got {written} bytes, "
+                    f"server announced {expected_int}"
+                )
+    return written
+
+
+def fetch_transactions(cache_path: Path, force: bool = False) -> list[dict]:
+    # 1. Cache hit — trust the file if it parses as a JSON list. Also
+    #    accept the legacy path so existing dev machines don't re-download.
+    if not force:
+        for candidate in (cache_path, _LEGACY_CACHE):
+            cached = _validate_json_file(candidate)
+            if cached is not None:
+                print(f"[pos] cache hit {candidate} "
+                      f"({candidate.stat().st_size/1e6:.1f} MB, "
+                      f"{len(cached):,} records)")
+                return cached
+        if cache_path.exists():
+            print(f"[pos] cache present but invalid — re-fetching")
+
+    # 2. Streaming download with retry-on-incomplete + backoff. Writes to
+    #    a `.partial` sibling and only swaps in once the file parses.
+    partial_path = cache_path.with_suffix(cache_path.suffix + ".partial")
+    last_error: Exception | None = None
+    for attempt in range(1, _FETCH_MAX_ATTEMPTS + 1):
+        try:
+            if partial_path.exists():
+                partial_path.unlink()
+            print(f"[pos] fetching {TX_ENDPOINT} "
+                  f"(attempt {attempt}/{_FETCH_MAX_ATTEMPTS})")
+            written = _stream_to_partial(TX_ENDPOINT, partial_path)
+            print(f"[pos]   downloaded {written/1e6:.1f} MB → "
+                  f"{partial_path.name}; validating JSON…")
+            payload = _validate_json_file(partial_path)
+            if payload is None:
+                raise IOError("payload did not parse as a JSON list")
+            partial_path.replace(cache_path)
+            print(f"[pos] cached {len(payload):,} records → {cache_path}")
+            return payload
+        except (requests.exceptions.RequestException, IOError,
+                json.JSONDecodeError) as e:
+            last_error = e
+            print(f"[pos]   attempt {attempt} failed: "
+                  f"{type(e).__name__}: {e}", file=sys.stderr)
+            if attempt < _FETCH_MAX_ATTEMPTS:
+                delay = _FETCH_BACKOFF_BASE ** attempt
+                print(f"[pos]   backing off {delay:.0f}s…", file=sys.stderr)
+                time.sleep(delay)
+    raise RuntimeError(
+        f"failed to fetch {TX_ENDPOINT} after {_FETCH_MAX_ATTEMPTS} attempts; "
+        f"last error: {last_error}"
+    )
 
 
 def adopt_cache(cache_path: Path, source: Path) -> None:
