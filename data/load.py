@@ -85,12 +85,37 @@ def write_table(con: duckdb.DuckDBPyConnection, name: str, df: pd.DataFrame, pro
     con.unregister("_tmp")
 
 
+_DATE_COLUMNS = {
+    "purchase_orders": ["po_date", "expected_delivery_date"],
+    "deliveries": ["delivery_date"],
+    "invoices": ["invoice_date", "due_date"],
+    "payments": ["payment_date"],
+    "skus": ["introduced"],
+}
+
+# Modelled supply chain in seed CSVs spans 2025-01 to 2025-06; real POS
+# spans 2026-03 to 2026-05+. Shift modelled dates forward so the two
+# streams align temporally for the credit-product demo. Documented in
+# About page caveats.
+MODELLED_DATE_SHIFT_MONTHS = 14
+
+
+def _shift_dates(series: pd.Series, months: int) -> pd.Series:
+    return (pd.to_datetime(series, errors="coerce")
+              + pd.DateOffset(months=months)).dt.date
+
+
 def load_modelled(db_path: Path) -> None:
     rng = np.random.default_rng(seed=20260525)
     con = duckdb.connect(str(db_path))
     try:
         for table, fname in MODELLED_TABLES.items():
             df = pd.read_csv(SEED_DIR / fname)
+            for col in _DATE_COLUMNS.get(table, []):
+                if table == "skus":
+                    df[col] = pd.to_datetime(df[col], errors="coerce").dt.date
+                else:
+                    df[col] = _shift_dates(df[col], MODELLED_DATE_SHIFT_MONTHS)
             if table == "deliveries":
                 df = inject_quality_variance(df, rng)
             write_table(con, table, df, provenance="modelled")
@@ -98,6 +123,7 @@ def load_modelled(db_path: Path) -> None:
 
         # Supplemental store metadata — kept on disk only; not promoted to a
         # table because store IDs don't reconcile with the real POS feed.
+        con.execute("DROP TABLE IF EXISTS store_routing")
         con.execute(
             """
             CREATE TABLE store_routing AS
@@ -127,6 +153,20 @@ def main() -> None:
     print(f"[pos] quality filter: {stats}")
     load_into_duckdb(DEFAULT_DB, tx_df, li_df)
     load_modelled(DEFAULT_DB)
+
+    # Phase 1 step 4/5: load reviewed recipe mapping + derive consumption.
+    candidates = REPO_ROOT / "data" / "sku_recipe_mapping_candidates.csv"
+    if candidates.exists():
+        from scripts.load_recipe_mapping import load as _load_map, build_consumption
+        mapstats = _load_map(candidates, DEFAULT_DB)
+        print(f"[map] sku_recipe_mapping rows: {mapstats['rows']:,}, "
+              f"coverage={mapstats['revenue_coverage']*100:.2f}%")
+        cstats = build_consumption(DEFAULT_DB)
+        print(f"[der] ingredient_consumption_daily: {cstats['rows']:,} rows "
+              f"over {cstats['days']} days, {cstats['ingredients']} ingredients")
+    else:
+        print("[map] sku_recipe_mapping_candidates.csv not found — "
+              "run scripts/compute_all_recipes.py then re-run load.py")
 
     con = duckdb.connect(str(DEFAULT_DB), read_only=True)
     try:

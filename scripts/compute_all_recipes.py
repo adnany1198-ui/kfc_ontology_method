@@ -65,7 +65,8 @@ _TEMPLATE_ALIASES: dict[str, list[str]] = {
     "SKU-013": ["HOT AND CRISPY 8 PCS BUCKET"],
     "SKU-014": ["HOT AND CRISPY 12 PCS BUCKET"],
     "SKU-015": ["HOT AND CRISPY 21 PCS BUCKET"],
-    "SKU-020": ["HOT WINGS 6 PCS"],
+    "SKU-020": ["HOT WINGS 6 PCS", "SAUCY WINGS", "TANGY MASALA WINGS",
+                "SALSA SPRINKLE WINGS"],
     "SKU-021": ["HOT WINGS 12 PCS", "HOT WINGS 10 PCS"],
     "SKU-022": ["CHICKEN STRIPS 3 PCS"],
     "SKU-023": ["CHICKEN STRIPS 5 PCS", "CHICKEN STRIPS 4"],
@@ -89,11 +90,42 @@ _TEMPLATE_ALIASES: dict[str, list[str]] = {
 
 _BAND_THRESHOLDS = [("exact", 95.0), ("close", 80.0), ("approximate", 60.0)]
 
+# Adnan-signed manual decompositions, applied by matching against the
+# stripped name (channel + Alacarte removed, uppercased).
+_MANUAL_DECOMPOSITIONS: dict[str, list[tuple[str, float]]] = {
+    "FAMILY FESTIVAL-3": [
+        ("SKU-014", 1.0), ("SKU-060", 4.0), ("SKU-051", 2.0), ("SKU-052", 2.0),
+    ],
+    "FAMILY FESTIVAL-2": [
+        ("SKU-013", 1.0), ("SKU-060", 4.0), ("SKU-051", 2.0),
+    ],
+    "MIGHTY BURGER COMBO": [
+        ("SKU-004", 1.0), ("SKU-050", 1.0), ("SKU-060", 1.0),
+    ],
+    "KENTUCKY COMBO": [
+        ("SKU-011", 1.0), ("SKU-050", 1.0), ("SKU-060", 1.0),
+    ],
+    "ZINGER COMBO": [
+        ("SKU-001", 1.0), ("SKU-050", 1.0), ("SKU-060", 1.0),
+    ],
+}
 
-# Token → recipe template. None means the token is recognised but has no
-# template (e.g. nuggets, dipping sauce — visible in the bundle but not in
-# the seed recipe set).
-_TOKEN_MAP: dict[str, str | None] = {
+
+def _manual_decomposition_for(stripped_name: str) -> list[tuple[str, float]] | None:
+    up = stripped_name.upper().strip(" -")
+    # Exact prefix match (so "ZINGER COMBO" doesn't match "ZINGER STACKER COMBO")
+    for key, recipe in _MANUAL_DECOMPOSITIONS.items():
+        if up == key or up.startswith(key + " "):
+            return recipe
+    return None
+
+
+# Token → mapping spec. A string like "SKU-..." or "ING-..." resolves
+# directly; "*_BY_COUNT" sentinels resolve via count grid; None means the
+# token is intentionally unmapped (e.g. PRM). Tuple form
+# `(target, "proxy", note, scale)` means: emit a constituent with note and
+# scale the count (e.g. NUGGETS → SKU-022 with quantity = count/3).
+_TOKEN_MAP: dict[str, object] = {
     # Burgers
     "ZIN": "SKU-001",
     "ZINGER": "SKU-001",
@@ -104,23 +136,20 @@ _TOKEN_MAP: dict[str, str | None] = {
     "MIGHTYZINGER": "SKU-004",
     "STACKER": "SKU-002",
     "JUNIOR": "SKU-003",
-    "KENTUCKYBURGER": "SKU-005",       # closest available burger
-    # Hot & Crispy — count-dependent, resolved in code
+    "KENTUCKYBURGER": "SKU-005",
+    # Hot & Crispy — count-dependent
     "H&C": "H_AND_C_BY_COUNT",
     "H&CCHICKEN": "H_AND_C_BY_COUNT",
-    "PC": "H_AND_C_BY_COUNT",
-    "PCS": "H_AND_C_BY_COUNT",
-    "PIECES": "H_AND_C_BY_COUNT",
-    "PIECE": "H_AND_C_BY_COUNT",
     "HOTANDCRISPY": "H_AND_C_BY_COUNT",
-    # Strips — count-dependent
+    # Strips
     "STRIPS": "STRIPS_BY_COUNT",
     "STRIP": "STRIPS_BY_COUNT",
-    # Wings — count-dependent
+    # Wings
     "WING": "WINGS_BY_COUNT",
     "WINGS": "WINGS_BY_COUNT",
     "HOTWING": "WINGS_BY_COUNT",
     "HOTWINGS": "WINGS_BY_COUNT",
+    "SAUCYWINGS": ("SKU-020", "flavour variant"),
     # Wraps
     "TWISTER": "SKU-030",
     "SNACKER": "SKU-031",
@@ -134,9 +163,9 @@ _TOKEN_MAP: dict[str, str | None] = {
     "CORN": "SKU-053",
     "COLESLAW": "SKU-052",
     "COLELAW": "SKU-052",
-    # Drinks — RD is "regular drink", DR is taken as "large drink"
+    # Drinks — DR and RD both Pepsi Regular (Adnan's finalised grammar)
     "RD": "SKU-060",
-    "DR": "SKU-061",
+    "DR": "SKU-060",
     "FOUNTAIN": "SKU-060",
     "FOUNTAINDRINK": "SKU-060",
     "DRINK": "SKU-060",
@@ -147,15 +176,17 @@ _TOKEN_MAP: dict[str, str | None] = {
     # Rice
     "RICE": "SKU-040",
     "RICESPICE": "SKU-040",
-    # Known-but-not-in-recipes (visible bundle constituents w/o templates)
-    "NUGGET": None,
-    "NUGGETS": None,
-    "HOTSHOT": None,
-    "HOTSHOTS": None,
-    "DIP": None,
-    "DIPS": None,
-    "SLICE": None,        # cheese slice
-    "PRM": None,          # premium add-on
+    # Proxies — visible bundle items mapped to closest template
+    "NUGGET": ("SKU-022", "nugget proxy", 1.0 / 3.0),
+    "NUGGETS": ("SKU-022", "nugget proxy", 1.0 / 3.0),
+    "HOTSHOT": ("SKU-031", "hotshot proxy"),
+    "HOTSHOTS": ("SKU-031", "hotshot proxy"),
+    # Direct ingredients (bypass recipe templates)
+    "DIP": ("ING-081", "direct ingredient"),
+    "DIPS": ("ING-081", "direct ingredient"),
+    "SLICE": ("ING-050", "direct ingredient"),
+    # Genuinely unparsed
+    "PRM": None,
     "PARATHA": None,
 }
 
@@ -264,29 +295,40 @@ def _normalise_token(tok: str) -> str:
     return tok
 
 
-def _lookup_token(tok: str, count: int) -> tuple[str | None, str | None]:
-    """Return (recipe_template_id, note). recipe_template_id may be None for
-    known-but-not-mappable tokens (e.g. NUGGETS)."""
+def _lookup_token(tok: str, count: int) -> tuple[str | None, str | None, float]:
+    """Return (template_id, note, quantity).
+
+    template_id may be:
+      - "SKU-..." or "ING-..." for a real mapping
+      - None when intentionally unmapped (returns note="" and a sentinel
+        caller path; the calling code distinguishes None vs unrecognised
+        by checking the second return)
+    """
     norm = _normalise_token(tok)
-    # Try direct lookups, peeling final 'S'.
     candidates = [norm, norm.rstrip("S"), norm + "S"]
     for c in candidates:
         if c in _TOKEN_MAP:
-            sku = _TOKEN_MAP[c]
-            if sku == "H_AND_C_BY_COUNT":
+            spec = _TOKEN_MAP[c]
+            if spec == "H_AND_C_BY_COUNT":
                 resolved = _HC_BY_COUNT.get(count)
                 if resolved is None:
-                    return _HC_BY_COUNT[max(_HC_BY_COUNT)], (
-                        f"H&C count {count} not in template grid — "
-                        f"using SKU-015 (21pc)"
-                    )
-                return resolved, None
-            if sku == "STRIPS_BY_COUNT":
-                return _STRIPS_BY_COUNT.get(count, "SKU-023"), None
-            if sku == "WINGS_BY_COUNT":
-                return _WINGS_BY_COUNT.get(count, "SKU-021"), None
-            return sku, None
-    return None, "unrecognised"
+                    return (_HC_BY_COUNT[max(_HC_BY_COUNT)],
+                            f"H&C count {count} not in template grid — "
+                            f"using SKU-015 (21pc)", 1.0)
+                return resolved, None, 1.0
+            if spec == "STRIPS_BY_COUNT":
+                return _STRIPS_BY_COUNT.get(count, "SKU-023"), None, 1.0
+            if spec == "WINGS_BY_COUNT":
+                return _WINGS_BY_COUNT.get(count, "SKU-021"), None, 1.0
+            if isinstance(spec, tuple):
+                target = spec[0]
+                note = spec[1] if len(spec) > 1 else None
+                scale = spec[2] if len(spec) > 2 else 1.0
+                return target, note, scale
+            if spec is None:
+                return None, "intentionally_unmapped", 1.0
+            return spec, None, 1.0
+    return None, "unrecognised", 1.0
 
 
 def parse_bundle(raw: str) -> tuple[list[dict], list[str]]:
@@ -329,31 +371,35 @@ def parse_bundle(raw: str) -> tuple[list[dict], list[str]]:
             tok_raw = mb.group(1)
 
         tok_clean = tok_raw.upper().strip()
-        # split multi-word tokens — e.g. "H&C CHICKEN" → take leading meaningful piece
-        words = [w for w in tok_clean.split() if w not in _BUNDLE_NOISE]
-        candidate_token = "".join(words) if words else tok_clean.replace(" ", "")
+        raw_words = tok_clean.split()
+        words = [w for w in raw_words if w not in _BUNDLE_NOISE]
+        # "2PC" (no substance word) → interpret as H&C by count
+        if not words and any(w in {"PC", "PCS", "PIECE", "PIECES"} for w in raw_words):
+            candidate_token = "H&C"
+        else:
+            candidate_token = "".join(words) if words else tok_clean.replace(" ", "")
 
         if not candidate_token:
             continue
 
-        sku, note = _lookup_token(candidate_token, count)
-        if sku is None and note == "unrecognised":
+        target, note, scale = _lookup_token(candidate_token, count)
+        if target is None and note == "unrecognised":
             unparsed.append(f"{count}×{tok_raw}")
             continue
-        if sku is None:
-            # Known-but-not-mappable (nuggets, dip etc.)
-            unparsed.append(f"{count}×{candidate_token}(no-template)")
+        if target is None:
+            unparsed.append(f"{count}×{candidate_token}(intentionally_unmapped)")
             continue
 
-        key = sku
+        qty = float(count) * float(scale)
+        key = target
         if key in aggregated:
-            aggregated[key]["quantity"] += count
+            aggregated[key]["quantity"] += qty
             if note and note not in aggregated[key]["note"]:
                 aggregated[key]["note"] += f"; {note}"
         else:
             aggregated[key] = {
-                "template_id": sku,
-                "quantity": count,
+                "template_id": target,
+                "quantity": qty,
                 "source_token": f"{count}×{candidate_token}",
                 "note": note or "",
             }
@@ -382,29 +428,50 @@ def band_for(score: float) -> str:
     return "unmapped"
 
 
-def build_rows(menu: pd.DataFrame, skus: pd.DataFrame) -> pd.DataFrame:
+def build_rows(menu: pd.DataFrame, skus: pd.DataFrame,
+               ingredients: pd.DataFrame) -> pd.DataFrame:
     corpus, corpus_to_sku = build_template_corpus(skus)
     sku_lookup = {row.sku_id: row for row in skus.itertuples()}
+    ing_lookup = {row.ingredient_id: row for row in ingredients.itertuples()}
+    total_rev = float(menu["revenue_pkr"].fillna(0).sum()) or 1.0
+    one_pct = 0.01 * total_rev
+
+    def name_for(target_id: str) -> str:
+        if target_id in sku_lookup:
+            return sku_lookup[target_id].name
+        if target_id in ing_lookup:
+            return f"{ing_lookup[target_id].name} (direct ingredient)"
+        return ""
 
     rows: list[dict] = []
 
     for _, item in menu.iterrows():
         raw_name = item["product_name"] or ""
         base = item.get("base_name") or raw_name
-        rev = float(item["revenue_pkr"] or 0.0)
-        units = float(item["units_sold"] or 0.0)
+        stripped = strip_channel(base)
 
-        # 1. Wastage / modifiers — exclude entirely.
         if is_wastage(raw_name):
             rows.append(_row(item, "", "", 0.0, "exclude_wastage",
-                             "primary", "wastage / modifier line — exclude"))
+                             "primary", "wastage / modifier line — exclude",
+                             approved=True))
+            continue
+
+        # Adnan-signed manual decompositions first.
+        manual = _manual_decomposition_for(stripped)
+        if manual is not None:
+            for target_id, qty in manual:
+                rows.append(_row(item, target_id, name_for(target_id),
+                                 float(qty), "composite_decomposed",
+                                 "constituent",
+                                 f"manual decomposition signed by reviewer",
+                                 approved=True))
             continue
 
         composite = is_composite(raw_name)
 
-        # 2. Single items — fuzzy match against templates.
+        # 2. Single items — fuzzy match.
         if not composite:
-            normalised = normalise_single(strip_channel(base))
+            normalised = normalise_single(stripped)
             if not normalised:
                 rows.append(_row(item, "", "", 0.0, "unmapped",
                                  "primary", "empty normalised name"))
@@ -417,14 +484,30 @@ def build_rows(menu: pd.DataFrame, skus: pd.DataFrame) -> pd.DataFrame:
             matched_phrase, score, _ = hit
             sku = corpus_to_sku[matched_phrase]
             band = band_for(score)
-            tmpl_name = sku_lookup[sku].name if band != "unmapped" else ""
+            tmpl_name = name_for(sku) if band != "unmapped" else ""
             rows.append(_row(item, sku if band != "unmapped" else "",
                              tmpl_name, 1.0, band, "primary",
-                             f"fuzzy WRatio={score:.1f}"))
+                             f"fuzzy WRatio={score:.1f}",
+                             approved=band in {"exact", "close", "approximate"}))
             continue
 
         # 3. Composite bundles.
         if not has_enumeration(raw_name):
+            # Best-effort single-SKU fallback for long-tail items (<1% rev).
+            rev = float(item["revenue_pkr"] or 0.0)
+            if rev < one_pct:
+                normalised = normalise_single(stripped)
+                hit = (process.extractOne(normalised, corpus, scorer=fuzz.WRatio)
+                       if normalised else None)
+                if hit:
+                    matched_phrase, score, _ = hit
+                    sku = corpus_to_sku[matched_phrase]
+                    rows.append(_row(item, sku, name_for(sku), 1.0,
+                                     "approximate", "primary",
+                                     f"best-effort long-tail fuzzy "
+                                     f"WRatio={score:.1f}; rev={rev:,.0f}",
+                                     approved=True))
+                    continue
             rows.append(_row(item, "", "", 0.0,
                              "needs_manual_decomposition", "primary",
                              "bundle name has no enumerated breakdown"))
@@ -442,17 +525,18 @@ def build_rows(menu: pd.DataFrame, skus: pd.DataFrame) -> pd.DataFrame:
             f"unparsed tokens: {', '.join(unparsed)}" if unparsed else ""
         )
         for c in constituents:
-            tmpl_name = sku_lookup[c["template_id"]].name
             parts = [p for p in [c["note"], unparsed_note] if p]
             note = "; ".join(parts) if parts else f"parsed from '{c['source_token']}'"
-            rows.append(_row(item, c["template_id"], tmpl_name,
-                             float(c["quantity"]), band, "constituent", note))
+            rows.append(_row(item, c["template_id"], name_for(c["template_id"]),
+                             float(c["quantity"]), band, "constituent", note,
+                             approved=(band == "composite_decomposed")))
 
     df = pd.DataFrame(rows)
     return df
 
 
-def _row(item, template_id, template_name, quantity, band, role, note) -> dict:
+def _row(item, template_id, template_name, quantity, band, role, note,
+         approved: bool = False) -> dict:
     return {
         "real_sku_id": item["product_id"],
         "real_sku_name": item["product_name"],
@@ -466,7 +550,7 @@ def _row(item, template_id, template_name, quantity, band, role, note) -> dict:
         "confidence_band": band,
         "component_role": role,
         "note": note,
-        "approved_by_reviewer": False,
+        "approved_by_reviewer": approved,
     }
 
 
@@ -532,9 +616,12 @@ def generate_candidates(db_path: Path, out_path: Path) -> dict:
     skus = con.execute(
         "SELECT sku_id, name, category, price_pkr FROM skus ORDER BY sku_id"
     ).fetchdf()
+    ingredients = con.execute(
+        "SELECT ingredient_id, name, unit FROM ingredients"
+    ).fetchdf()
     con.close()
 
-    df = build_rows(menu, skus)
+    df = build_rows(menu, skus, ingredients)
     df = df.sort_values(["revenue_pkr", "real_sku_id", "component_role"],
                         ascending=[False, True, True])
     out_path.parent.mkdir(parents=True, exist_ok=True)
