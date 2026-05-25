@@ -312,3 +312,35 @@ Hardcode the walk path; compute live values.
   boundaries (Railway feed, user input on Compose page).
 - Don't introduce abstractions beyond what the task requires.
 - Don't create new files unless the spec calls for them.
+
+---
+
+## 10. Process
+
+- **Do not edit `SPEC.md` unilaterally.** If you find an ambiguity or
+  contradiction during build, post the proposed edit for sign-off before
+  applying. The spec is the contract; small edits compound.
+- `CLAUDE.md` may be extended autonomously — that is where build-time
+  resolutions live.
+- Execute Phases 1-6 continuously. Make reasonable defaults for anything
+  not covered, and document the defaults in code comments. Stop only at
+  hard blockers (Railway unreachable, dependency conflict) or at the
+  named gates below.
+
+## 11. Gates
+
+- **Gate 1.** After generating `data/sku_recipe_mapping_candidates.csv`
+  (Phase 1 step 4). Post the CSV plus summary stats: total real SKUs,
+  % mapped at each confidence band, top 20 unmapped SKUs by revenue.
+  Wait for Adnan's edits.
+- **Gate 2.** If recipe-mapping coverage <75% of POS revenue after Adnan's
+  review. Post the unmapped high-revenue SKUs.
+- **Gate 3.** During Phase 3 calibration. If all suppliers cluster in one
+  OTS tier (or similar pathological distribution), post the distribution
+  and proposed threshold adjustments.
+- **Gate 4.** After full end-to-end test. Post: (a) `streamlit run app.py`
+  produces a working app, (b) all six pages load, (c) time cursor works
+  across all panels, (d) drill-down completes a full walk to leaf nodes,
+  (e) compose page creates a user entity, (f) all three credit products
+  simulate with default and modified parameters. Report LoC, test
+  coverage, deferred items, known issues.
